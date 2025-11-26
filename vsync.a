@@ -2,6 +2,9 @@
 	include "vcs.h"
 	include "macro.h"
 
+PLAYFIELD_HEIGHT = 169
+
+
 	SEG.U RAM_VARS
 	ORG $80
 
@@ -27,6 +30,12 @@ BlueRem	ds 1
 
 BluePad ds 1
 PinkPad ds 1
+
+FramePreScrollTimer ds 1
+LinePreScrollTimer ds 1
+
+BlueStartEnable ds 1
+PinkStartEnable ds 1
 
 Time	ds 2
 
@@ -120,6 +129,20 @@ Start	CLEAN_START
         sta PinkFrameCtr
         lda SongDataBlueTimes
         sta BlueFrameCtr
+        
+        lda #PLAYFIELD_HEIGHT
+        sta FramePreScrollTimer
+        
+        lda #$aa
+        sta COLUP0
+        lda #$5c
+        sta COLUP1
+        
+        lda #$30
+        sta NUSIZ0
+        sta NUSIZ1
+        
+        
 
 
 NextFrame
@@ -166,19 +189,6 @@ NextFrame
 	stx PinkPad
 .DontMove
 
-	lda #$aa
-        sta COLUP0
-        lda #$5c
-        sta COLUP1
-        
-        lda #2
-        sta ENAM0
-        sta ENAM1
-        
-        lda #$30
-        sta NUSIZ0
-        sta NUSIZ1
-
 	lda BlueFrameX
         sta BlueLineX
         SET_SPRT RESM0, HMM0, BlueLineX
@@ -190,6 +200,14 @@ NextFrame
         lda #$00
         sta GRP0
         sta GRP1
+        
+        lda FramePreScrollTimer
+        sta LinePreScrollTimer
+        
+        lda BlueStartEnable
+        sta ENAM0
+        lda PinkStartEnable
+        sta ENAM1
         
         lda PinkFrameIdx
         sta PinkLineIdx
@@ -226,6 +244,20 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
 	lda #1
 ScanLoop        
 
+        ldy LinePreScrollTimer
+        beq .NoPreScroll
+        dey
+        beq .PreScrollDone
+        sty LinePreScrollTimer
+        sta WSYNC     
+        dex
+	bne ScanLoop
+.PreScrollDone
+        lda #2
+        sta ENAM0
+        sta ENAM1
+.NoPreScroll
+        
         
         ldy PinkLineIdx
 	dec PinkLineCtr
@@ -287,6 +319,18 @@ HudLoop
         sta VBLANK
 ; 30 lines of overscan to complete the frame
 
+UpdatePrescrollTimer: subroutine
+        ldy FramePreScrollTimer
+        beq .Done
+        dey
+        sty FramePreScrollTimer
+        bne FrameDoneLoop
+        ; Reached Zero
+        lda #2
+        sta BlueStartEnable
+        sta PinkStartEnable
+.Done
+
 UpdateFramePink: subroutine
         ldy PinkFrameIdx
 	dec PinkFrameCtr
@@ -317,7 +361,9 @@ UpdateFrameBlue: subroutine
 
         sta BlueFrameX
         
-        
+
+FrameDoneLoop: subroutine
+
 	ldx #30
 LVOver	sta WSYNC
 	dex
