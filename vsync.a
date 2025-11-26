@@ -14,10 +14,42 @@ PinkCtr = $87
 PinkVel = $88
 PinkIdx = $89
 
-BlueCtr = $97
-BlueVel = $98
-BlueIdx = $99
+BlueCtr = $8A
+BlueVel = $8B
+BlueIdx = $8C
+
+BluePad = $8D
+PinkPad = $8E
+
+
+
 ; = $88
+
+    MAC SET_SPRT
+	lda {3}
+	sec   
+.loop
+        sbc #15
+        bcs .loop
+
+	sta {1}
+        
+        sta WSYNC
+        adc #7
+        eor #$f
+        
+        asl
+        asl
+        asl
+        asl
+        sta {2}
+        sta HMOVE
+        lda #0
+        sta {2}
+           
+    ENDM
+
+
 
 	org  $f000
 
@@ -87,16 +119,9 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         sta ENAM0
         sta ENAM1
         
-        
         lda #$30
         sta NUSIZ0
         sta NUSIZ1
-        
-        
-        ;ldy #$ff
-        ;sty GRP0
-	;sty GRP1
-
 
 	lda #50
         sta BlueX
@@ -123,6 +148,10 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
 	sta WSYNC
         SLEEP 4	; exact
         jsr SetPink
+        
+        lda #$00
+        sta GRP0
+        sta GRP1
         
 ; Re-enable output (disable VBLANK)
 	lda #0
@@ -151,9 +180,11 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         lda SongDataPinkVel,y
         sta HMM1
         
+
+        
         
 ; 192 scanlines are visible
-	ldx #192
+	ldx #170
 	lda #1
 ScanLoop        
 
@@ -189,6 +220,27 @@ ScanLoop
         dex
 	bne ScanLoop
         
+        
+        stx ENAM0
+        stx ENAM1
+        
+        ; TODO: Activate the paddles here
+        
+        lda #$ff
+        sta GRP0
+        sta GRP1
+        SET_SPRT RESP0, HMP0, BluePad
+        SET_SPRT RESP1, HMP1, PinkPad
+        
+	ldx #22
+HudLoop        
+	sta WSYNC
+        
+        ; TODO: Draw the paddles here
+        
+        
+        dex
+        bne HudLoop
 
 ; Enable VBLANK again
 	lda #2
@@ -203,51 +255,16 @@ LVOver	sta WSYNC
 	jmp NextFrame
 	
 
-SetBlue: subroutine
-	lda BlueX
-	sec   
-.loop
-        sbc #15
-        bcs .loop
 
-	sta RESM0
-        
-        sta WSYNC
-        adc #7
-        eor #$f
-        
-        asl
-        asl
-        asl
-        asl
-        sta HMM0
-        sta HMOVE
-        lda #0
-        sta HMP0
+SetBlue: subroutine
+	SET_SPRT RESM0, HMM0, BlueX
 	rts
         
 SetPink: subroutine
-	lda PinkX
-	sec   
-.loop
-        sbc #15
-        bcs .loop
-
-	sta RESM1
-        
-        sta WSYNC
-        adc #7
-        eor #$f
-        
-        asl
-        asl
-        asl
-        asl
-        sta HMM1
-        lda #0
-        sta HMOVE
+	SET_SPRT RESM1, HMM1, PinkX
 	rts
         
 	org $fffc
 	.word Start
 	.word Start
+        
