@@ -133,11 +133,6 @@ Start	CLEAN_START
         lda #PLAYFIELD_HEIGHT
         sta FramePreScrollTimer
         
-        lda #$aa
-        sta COLUP0
-        lda #$5c
-        sta COLUP1
-        
         lda #$30
         sta NUSIZ0
         sta NUSIZ1
@@ -200,6 +195,11 @@ NextFrame
         lda #$00
         sta GRP0
         sta GRP1
+        
+        lda #$aa
+        sta COLUP0
+        lda #$5c
+        sta COLUP1
         
         lda FramePreScrollTimer
         sta LinePreScrollTimer
@@ -296,15 +296,63 @@ ScanLoop
         ; SCANLINE 212 (But should be 210)
         
         ; TODO: Activate the paddles here
-                
-        lda #$ff
-        ;sta GRP0
-        sta GRP1
         
         ;SET_SPRT RESP0, HMP0, BluePad
         SET_SPRT RESP1, HMP1, PinkPad
         
-	ldx #18
+        sta WSYNC
+        
+        lda #$0e
+        sta COLUP0
+        lda #$0e
+        sta COLUP1
+        
+	lda #$08
+        sta GRP0
+        sta GRP1
+        sta WSYNC
+        sta WSYNC
+        
+        lda #$ae
+        sta COLUP0
+        lda #$5e
+        sta COLUP1
+        
+        lda #$1C
+        sta GRP0
+        sta GRP1
+        sta WSYNC
+        sta WSYNC
+        
+        lda #$3E
+        sta GRP0
+        sta GRP1
+        sta WSYNC
+        sta WSYNC
+        
+        
+        lda #$aa
+        sta COLUP0
+        lda #$5c
+        sta COLUP1
+        
+        lda #$6B
+        sta GRP0
+        sta GRP1
+        sta WSYNC
+        sta WSYNC
+        
+        lda #$41
+        sta GRP0
+        sta GRP1
+        sta WSYNC
+        sta WSYNC
+        
+        lda #$00
+        sta GRP0
+        sta GRP1
+        
+	ldx #7
 HudLoop        
 	sta WSYNC
         
@@ -363,7 +411,6 @@ UpdateFrameBlue: subroutine
         
 
 FrameDoneLoop: subroutine
-
 	ldx #30
 LVOver	sta WSYNC
 	dex
