@@ -1,0 +1,242 @@
+
+	processor 6502
+	include "vcs.h"
+	include "macro.h"
+
+BGColor	= $81
+BlueX	= $82
+PinkX	= $83
+BlueRem	= $84
+PinkRem	= $85
+
+Time	= $86
+PinkCtr = $87
+PinkVel = $88
+PinkIdx = $89
+
+BlueCtr = $97
+BlueVel = $98
+BlueIdx = $99
+; = $88
+
+	org  $f000
+
+
+SongDataPinkVel
+	.byte $10, $20, $00, $D0, $E0, $20
+SongDataPinkTimes
+        .byte 10, 30, 25, 10, 12
+
+SongDataBlueVel
+	.byte $00, $F0, $00, $F0, $10, $10
+SongDataBlueTimes
+        .byte 50, 30, 10, 40, 12
+
+
+; Now we're going to drive the TV signal properly.
+; Assuming NTSC standards, we need the following:
+; - 3 scanlines of VSYNC
+; - 37 blank lines
+; - 192 visible scanlines
+; - 30 blank lines
+
+; We'll use the VSYNC register to generate the VSYNC signal,
+; and the VBLANK register to force a blank screen above
+; and below the visible frame (it'll look letterboxed on
+; the emulator, but not on a real TV)
+
+
+; at time t a bar can have a command to set its position, velocity
+; and duration.
+
+
+
+; Let's define a variable to hold the starting color
+; at memory address $81
+
+; The CLEAN_START macro zeroes RAM and registers
+Start	CLEAN_START
+
+NextFrame
+; Enable VBLANK (disable output)
+	lda #2
+        sta VBLANK
+; At the beginning of the frame we set the VSYNC bit...
+	lda #2
+	sta VSYNC
+; And hold it on for 3 scanlines...
+	sta WSYNC
+	sta WSYNC
+	sta WSYNC
+; Now we turn VSYNC off.
+	lda #0
+	sta VSYNC
+
+; Now we need 37 lines of VBLANK...
+	ldx #37
+LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
+	dex		; decrement X
+	bne LVBlank	; loop until X == 0
+
+	lda #$aa
+        sta COLUP0
+        lda #$5c
+        sta COLUP1
+        
+        ldy #$ff
+        sty GRP0
+	sty GRP1
+
+
+	lda #50
+        sta BlueX
+	lda BlueX
+        cmp #$15*7 + 8
+        bcc .NoBlueReset
+        lda #3
+        sta BlueX
+.NoBlueReset
+
+	sta WSYNC
+        SLEEP 4	; exact
+        jsr SetBlue
+
+	lda #90
+        sta PinkX
+	lda PinkX
+        cmp #$15*7 + 8
+        bcc .NoPinkReset
+        lda #3
+        sta PinkX
+.NoPinkReset
+        
+	sta WSYNC
+        SLEEP 4	; exact
+        jsr SetPink
+        
+; Re-enable output (disable VBLANK)
+	lda #0
+        sta VBLANK
+        
+        lda #$00
+        sta PinkVel
+        sta BlueVel
+        
+        lda #0
+        sta PinkIdx
+        sta BlueIdx
+        lda #1
+        sta PinkCtr
+        sta BlueCtr
+        
+        ldy BlueIdx
+        lda SongDataBlueTimes,y
+        sta BlueCtr
+        lda SongDataBlueVel,y
+        sta HMP0
+        
+        ldy PinkIdx
+        lda SongDataPinkTimes,y
+        sta BlueCtr
+        lda SongDataPinkVel,y
+        sta HMP1
+        
+        
+; 192 scanlines are visible
+	ldx #192/2
+	lda #1
+ScanLoop        
+
+	sta WSYNC	; WSYNC doesn't care what value is stored
+        
+        ldy PinkIdx
+	dec PinkCtr
+        bne .1
+        iny
+        lda SongDataPinkTimes,y
+        sta PinkCtr
+        lda SongDataPinkVel,y
+        sta HMP1
+.1:
+        sty PinkIdx
+
+        
+        sta WSYNC
+        
+        ldy BlueIdx
+	dec BlueCtr
+        bne .2
+        iny
+        lda SongDataBlueTimes,y
+        sta BlueCtr
+        lda SongDataBlueVel,y
+        sta HMP0
+.2:
+	sty BlueIdx
+	sta HMOVE
+     
+        dex
+	bne ScanLoop
+        
+
+; Enable VBLANK again
+	lda #2
+        sta VBLANK
+; 30 lines of overscan to complete the frame
+	ldx #30
+LVOver	sta WSYNC
+	dex
+	bne LVOver
+	
+; Go back and do another frame
+	jmp NextFrame
+	
+
+SetBlue: subroutine
+	lda BlueX
+	sec   
+.loop
+        sbc #15
+        bcs .loop
+
+	sta RESP0
+        
+        sta WSYNC
+        adc #7
+        eor #$f
+        
+        asl
+        asl
+        asl
+        asl
+        sta HMP0
+        sta HMOVE
+        lda #0
+        sta HMP0
+	rts
+        
+SetPink: subroutine
+	lda PinkX
+	sec   
+.loop
+        sbc #15
+        bcs .loop
+
+	sta RESP1
+        
+        sta WSYNC
+        adc #7
+        eor #$f
+        
+        asl
+        asl
+        asl
+        asl
+        sta HMP1
+        lda #0
+        sta HMOVE
+	rts
+        
+	org $fffc
+	.word Start
+	.word Start
