@@ -83,9 +83,19 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         lda #$5c
         sta COLUP1
         
-        ldy #$ff
-        sty GRP0
-	sty GRP1
+        lda #2
+        sta ENAM0
+        sta ENAM1
+        
+        
+        lda #$30
+        sta NUSIZ0
+        sta NUSIZ1
+        
+        
+        ;ldy #$ff
+        ;sty GRP0
+	;sty GRP1
 
 
 	lda #50
@@ -133,21 +143,20 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         lda SongDataBlueTimes,y
         sta BlueCtr
         lda SongDataBlueVel,y
-        sta HMP0
+        sta HMM0
         
         ldy PinkIdx
         lda SongDataPinkTimes,y
         sta BlueCtr
         lda SongDataPinkVel,y
-        sta HMP1
+        sta HMM1
         
         
 ; 192 scanlines are visible
-	ldx #192/2
+	ldx #192
 	lda #1
 ScanLoop        
 
-	sta WSYNC	; WSYNC doesn't care what value is stored
         
         ldy PinkIdx
 	dec PinkCtr
@@ -156,12 +165,12 @@ ScanLoop
         lda SongDataPinkTimes,y
         sta PinkCtr
         lda SongDataPinkVel,y
-        sta HMP1
+        sta HMM1
 .1:
         sty PinkIdx
 
         
-        sta WSYNC
+        ;sta WSYNC
         
         ldy BlueIdx
 	dec BlueCtr
@@ -170,9 +179,11 @@ ScanLoop
         lda SongDataBlueTimes,y
         sta BlueCtr
         lda SongDataBlueVel,y
-        sta HMP0
+        sta HMM0
 .2:
 	sty BlueIdx
+        
+        sta WSYNC
 	sta HMOVE
      
         dex
@@ -199,7 +210,7 @@ SetBlue: subroutine
         sbc #15
         bcs .loop
 
-	sta RESP0
+	sta RESM0
         
         sta WSYNC
         adc #7
@@ -209,7 +220,7 @@ SetBlue: subroutine
         asl
         asl
         asl
-        sta HMP0
+        sta HMM0
         sta HMOVE
         lda #0
         sta HMP0
@@ -222,7 +233,7 @@ SetPink: subroutine
         sbc #15
         bcs .loop
 
-	sta RESP1
+	sta RESM1
         
         sta WSYNC
         adc #7
@@ -232,7 +243,7 @@ SetPink: subroutine
         asl
         asl
         asl
-        sta HMP1
+        sta HMM1
         lda #0
         sta HMOVE
 	rts
