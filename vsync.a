@@ -4,20 +4,26 @@
 
 	SEG.U RAM_VARS
 	ORG $80
-        
-BlueX	ds 1
-PinkX	ds 1
-BlueRem	ds 1
+
+; Line Vars
+BlueLineX	ds 1
+BlueLineCtr ds 1
+BlueLineIdx ds 1
+
+PinkLineX	ds 1
+PinkLineCtr ds 1
+PinkLineIdx ds 1
+
+; Frame Vars
+BlueFrameX	ds 1
+BlueFrameCtr	ds 1
+BlueFrameIdx	ds 1
+PinkFrameX	ds 1
+PinkFrameCtr	ds 1
+PinkFrameIdx	ds 1
+
 PinkRem	ds 1
-
-;	= $86
-PinkCtr ds 1
-PinkVel ds 1
-PinkIdx ds 1
-
-BlueCtr ds 1
-BlueVel ds 1
-BlueIdx ds 1
+BlueRem	ds 1
 
 BluePad ds 1
 PinkPad ds 1
@@ -29,16 +35,19 @@ Time	ds 2
 	SEG
 	org  $f000
 
-
+SongDataPinkInit
+	.byte 70
 SongDataPinkVel
-	.byte $10, $20, $00, $D0, $E0, $20
+	.byte 1,   0,  -1,  2, -2,  2,  0,  -1,  0, 1, 0, -1, 0
 SongDataPinkTimes
-        .byte 10, 30, 25, 10, 12
+        .byte 70, 30, 140, 40, 12, 40, 80,  40, 80, 40, 80, 40, 80,
 
+SongDataBlueInit
+	.byte 70
 SongDataBlueVel
-	.byte $00, $F0, $00, $F0, $10, $10
+	.byte -1,  0,   1, -7,  0,  1, -1,  7, 0, -7, 0, 7, 0, -7, 0,
 SongDataBlueTimes
-        .byte 50, 30, 10, 40, 12
+        .byte 70, 30, 140, 21, 20, 50, 50, 21, 40, 21, 40, 21, 40, 21, 40,
 
     MAC SET_SPRT
     	sta WSYNC
@@ -65,6 +74,14 @@ SongDataBlueTimes
         sta {2}
            
     ENDM
+    
+    ; A -> A
+    MAC CONVERT_TO_HM
+    	asl
+        asl
+        asl
+        asl
+    ENDM
 ; Now we're going to drive the TV signal properly.
 ; Assuming NTSC standards, we need the following:
 ; - 3 scanlines of VSYNC
@@ -88,6 +105,22 @@ SongDataBlueTimes
 
 ; The CLEAN_START macro zeroes RAM and registers
 Start	CLEAN_START
+
+	; Loading the song
+	lda SongDataPinkInit
+        sta PinkFrameX
+        lda SongDataBlueInit
+        sta BlueFrameX
+        
+        lda #0
+        sta PinkFrameIdx
+        sta BlueFrameIdx
+        
+        lda SongDataPinkTimes
+        sta PinkFrameCtr
+        lda SongDataBlueTimes
+        sta BlueFrameCtr
+
 
 NextFrame
 ; Enable VBLANK (disable output)
@@ -133,12 +166,6 @@ NextFrame
 	stx PinkPad
 .DontMove
 
-
-	ldx #36
-LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
-	dex		; decrement X
-	bne LVBlank	; loop until X == 0
-
 	lda #$aa
         sta COLUP0
         lda #$5c
@@ -151,65 +178,47 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         lda #$30
         sta NUSIZ0
         sta NUSIZ1
-        
-        ;lda #$53
-        ;sta PinkPad
 
-	lda #50
-        sta BlueX
-	lda BlueX
-        cmp #$15*7 + 8
-        bcc .NoBlueReset
-        lda #3
-        sta BlueX
-.NoBlueReset
-
-        SET_SPRT RESM0, HMM0, BlueX
+	lda BlueFrameX
+        sta BlueLineX
+        SET_SPRT RESM0, HMM0, BlueLineX
         
-
-	lda #90
-        sta PinkX
-	lda PinkX
-        cmp #$15*7 + 8
-        bcc .NoPinkReset
-        lda #3
-        sta PinkX
-.NoPinkReset
-        
-	SET_SPRT RESM1, HMM1, PinkX
+        lda PinkFrameX
+        sta PinkLineX
+	SET_SPRT RESM1, HMM1, PinkLineX
         
         lda #$00
         sta GRP0
         sta GRP1
         
-; Re-enable output (disable VBLANK)
-	lda #0
-        sta VBLANK
+        lda PinkFrameIdx
+        sta PinkLineIdx
+        lda BlueFrameIdx
+        sta BlueLineIdx
+        lda PinkFrameCtr
+        sta PinkLineCtr
+        lda BlueFrameCtr
+        sta BlueLineCtr
         
-        lda #$00
-        sta PinkVel
-        sta BlueVel
-        
-        lda #0
-        sta PinkIdx
-        sta BlueIdx
-        lda #1
-        sta PinkCtr
-        sta BlueCtr
-        
-        ldy BlueIdx
-        lda SongDataBlueTimes,y
-        sta BlueCtr
+        ldy BlueLineIdx
         lda SongDataBlueVel,y
+        CONVERT_TO_HM
         sta HMM0
         
-        ldy PinkIdx
-        lda SongDataPinkTimes,y
-        sta BlueCtr
+        ldy PinkLineIdx
         lda SongDataPinkVel,y
+        CONVERT_TO_HM
         sta HMM1
         
-
+        
+        ldx #32
+LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
+	dex		; decrement X
+	bne LVBlank	; loop until X == 0
+        
+        ; SCANLINE 40
+	lda #0
+        sta VBLANK
         
         
 ; 192 scanlines are visible
@@ -218,30 +227,29 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
 ScanLoop        
 
         
-        ldy PinkIdx
-	dec PinkCtr
+        ldy PinkLineIdx
+	dec PinkLineCtr
         bne .1
         iny
         lda SongDataPinkTimes,y
-        sta PinkCtr
+        sta PinkLineCtr
         lda SongDataPinkVel,y
+        CONVERT_TO_HM
         sta HMM1
 .1:
-        sty PinkIdx
-
+        sty PinkLineIdx
         
-        ;sta WSYNC
-        
-        ldy BlueIdx
-	dec BlueCtr
+        ldy BlueLineIdx
+	dec BlueLineCtr
         bne .2
         iny
         lda SongDataBlueTimes,y
-        sta BlueCtr
+        sta BlueLineCtr
         lda SongDataBlueVel,y
+        CONVERT_TO_HM
         sta HMM0
 .2:
-	sty BlueIdx
+	sty BlueLineIdx
         
         sta WSYNC
 	sta HMOVE
@@ -253,6 +261,8 @@ ScanLoop
         stx ENAM0
         stx ENAM1
         
+        ; SCANLINE 212 (But should be 210)
+        
         ; TODO: Activate the paddles here
                 
         lda #$ff
@@ -262,7 +272,7 @@ ScanLoop
         ;SET_SPRT RESP0, HMP0, BluePad
         SET_SPRT RESP1, HMP1, PinkPad
         
-	ldx #22
+	ldx #18
 HudLoop        
 	sta WSYNC
         
@@ -272,10 +282,40 @@ HudLoop
         dex
         bne HudLoop
 
-; Enable VBLANK again
+	; SCANLINE 232
 	lda #2
         sta VBLANK
 ; 30 lines of overscan to complete the frame
+
+UpdateFramePink: subroutine
+        ldy PinkFrameIdx
+	dec PinkFrameCtr
+        bne .3
+        iny
+        lda SongDataPinkTimes,y
+        sta PinkFrameCtr
+.3
+        sty PinkFrameIdx
+	lda PinkFrameX
+        sec
+        sbc SongDataPinkVel,y
+        sta PinkFrameX
+        
+        
+UpdateFrameBlue: subroutine
+        ldy BlueFrameIdx
+	dec BlueFrameCtr
+        bne .3
+        iny
+        lda SongDataBlueTimes,y
+        sta BlueFrameCtr
+.3
+        sty BlueFrameIdx
+	lda BlueFrameX
+        sec
+        sbc SongDataBlueVel,y
+        sta BlueFrameX
+        
 	ldx #30
 LVOver	sta WSYNC
 	dex
