@@ -22,10 +22,9 @@ BluePad = $8D
 PinkPad = $8E
 
 
-
-; = $88
-
     MAC SET_SPRT
+    	sta WSYNC
+        SLEEP 14
 	lda {3}
 	sec   
 .loop
@@ -104,8 +103,27 @@ NextFrame
 	lda #0
 	sta VSYNC
 
-; Now we need 37 lines of VBLANK...
-	ldx #37
+	; VBLANK
+        
+        ; Control the locaation of the paddles
+        
+        ldx PinkPad
+        
+        bit SWCHA
+        bmi .NotRight
+	inx
+.NotRight
+	bvs .NotLeft
+        dex
+.NotLeft
+	
+        cpx #50
+        bcs .DontMove
+	stx PinkPad
+.DontMove
+
+
+	ldx #36
 LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
 	dex		; decrement X
 	bne LVBlank	; loop until X == 0
@@ -122,6 +140,9 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         lda #$30
         sta NUSIZ0
         sta NUSIZ1
+        
+        ;lda #$53
+        ;sta PinkPad
 
 	lda #50
         sta BlueX
@@ -132,9 +153,8 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         sta BlueX
 .NoBlueReset
 
-	sta WSYNC
-        SLEEP 4	; exact
-        jsr SetBlue
+        SET_SPRT RESM0, HMM0, BlueX
+        
 
 	lda #90
         sta PinkX
@@ -145,9 +165,7 @@ LVBlank	sta WSYNC	; accessing WSYNC stops the CPU until next scanline
         sta PinkX
 .NoPinkReset
         
-	sta WSYNC
-        SLEEP 4	; exact
-        jsr SetPink
+	SET_SPRT RESM1, HMM1, PinkX
         
         lda #$00
         sta GRP0
@@ -225,11 +243,12 @@ ScanLoop
         stx ENAM1
         
         ; TODO: Activate the paddles here
-        
+                
         lda #$ff
-        sta GRP0
+        ;sta GRP0
         sta GRP1
-        SET_SPRT RESP0, HMP0, BluePad
+        
+        ;SET_SPRT RESP0, HMP0, BluePad
         SET_SPRT RESP1, HMP1, PinkPad
         
 	ldx #22
@@ -253,16 +272,6 @@ LVOver	sta WSYNC
 	
 ; Go back and do another frame
 	jmp NextFrame
-	
-
-
-SetBlue: subroutine
-	SET_SPRT RESM0, HMM0, BlueX
-	rts
-        
-SetPink: subroutine
-	SET_SPRT RESM1, HMM1, PinkX
-	rts
         
 	org $fffc
 	.word Start
