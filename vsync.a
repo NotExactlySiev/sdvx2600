@@ -1,26 +1,44 @@
-
 	processor 6502
 	include "vcs.h"
 	include "macro.h"
 
-BGColor	= $81
-BlueX	= $82
-PinkX	= $83
-BlueRem	= $84
-PinkRem	= $85
+	SEG.U RAM_VARS
+	ORG $80
+        
+BlueX	ds 1
+PinkX	ds 1
+BlueRem	ds 1
+PinkRem	ds 1
 
-Time	= $86
-PinkCtr = $87
-PinkVel = $88
-PinkIdx = $89
+;	= $86
+PinkCtr ds 1
+PinkVel ds 1
+PinkIdx ds 1
 
-BlueCtr = $8A
-BlueVel = $8B
-BlueIdx = $8C
+BlueCtr ds 1
+BlueVel ds 1
+BlueIdx ds 1
 
-BluePad = $8D
-PinkPad = $8E
+BluePad ds 1
+PinkPad ds 1
 
+Time	ds 2
+
+
+; CODE
+	SEG
+	org  $f000
+
+
+SongDataPinkVel
+	.byte $10, $20, $00, $D0, $E0, $20
+SongDataPinkTimes
+        .byte 10, 30, 25, 10, 12
+
+SongDataBlueVel
+	.byte $00, $F0, $00, $F0, $10, $10
+SongDataBlueTimes
+        .byte 50, 30, 10, 40, 12
 
     MAC SET_SPRT
     	sta WSYNC
@@ -47,23 +65,6 @@ PinkPad = $8E
         sta {2}
            
     ENDM
-
-
-
-	org  $f000
-
-
-SongDataPinkVel
-	.byte $10, $20, $00, $D0, $E0, $20
-SongDataPinkTimes
-        .byte 10, 30, 25, 10, 12
-
-SongDataBlueVel
-	.byte $00, $F0, $00, $F0, $10, $10
-SongDataBlueTimes
-        .byte 50, 30, 10, 40, 12
-
-
 ; Now we're going to drive the TV signal properly.
 ; Assuming NTSC standards, we need the following:
 ; - 3 scanlines of VSYNC
@@ -103,9 +104,19 @@ NextFrame
 	lda #0
 	sta VSYNC
 
-	; VBLANK
+	; VBLANK - Game Logic Here
         
-        ; Control the locaation of the paddles
+        lda #1
+        clc
+        adc Time
+        sta Time
+        lda #0
+        adc Time+1
+        sta Time+1
+
+
+
+        ; Control the location of the paddles
         
         ldx PinkPad
         
@@ -117,7 +128,7 @@ NextFrame
         dex
 .NotLeft
 	
-        cpx #50
+        cpx #140
         bcs .DontMove
 	stx PinkPad
 .DontMove
