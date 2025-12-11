@@ -136,9 +136,6 @@ Start	CLEAN_START
         lda #$30
         sta NUSIZ0
         sta NUSIZ1
-        
-        
-
 
 NextFrame
 ; Enable VBLANK (disable output)
@@ -249,7 +246,7 @@ ScanLoop
         dey
         beq .PreScrollDone
         sty LinePreScrollTimer
-        sta WSYNC     
+        sta WSYNC
         dex
 	bne ScanLoop
 .PreScrollDone
@@ -297,7 +294,7 @@ ScanLoop
         
         ; TODO: Activate the paddles here
         
-        ;SET_SPRT RESP0, HMP0, BluePad
+        SET_SPRT RESP0, HMP0, BluePad
         SET_SPRT RESP1, HMP1, PinkPad
         
         sta WSYNC
@@ -333,7 +330,7 @@ ScanLoop
         
         lda #$aa
         sta COLUP0
-        lda #$5c
+        lda #$5a
         sta COLUP1
         
         lda #$6B
